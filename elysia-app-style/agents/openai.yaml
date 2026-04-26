@@ -1,0 +1,4 @@
+interface:
+  display_name: "Elysia App Style"
+  short_description: "Typed Elysia API structure"
+  default_prompt: "Use $elysia-app-style to build this Elysia API route with auth, route contracts, and DB-backed response schemas."
