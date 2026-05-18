@@ -1,7 +1,7 @@
 ---
 name: elysia-app-style
 description: >-
-  Build or refactor Bun/Elysia APIs in Firat's preferred style: thin app shell,
+  Build or refactor Bun/Elysia APIs in an opinionated, direct style: thin app shell,
   named route modules, explicit route registry, lightweight capability plugins,
   auth macros, colocated TypeBox route contracts, typed route/helper context, and
   Drizzle-to-TypeBox API response schemas. Use when working on Elysia controllers,
@@ -29,7 +29,7 @@ Use Elysia as a typed composition layer. Keep framework structure boring, explic
 12. Put route contracts beside handlers: `body`, `query`, `params`, `headers`, `cookie`, `response`, and `detail.operationId`.
 13. Keep route-local schemas small. Move large resource/model schemas to a single service-local schema file such as `src/schemas.ts`, then import them into routes.
 14. Use an auth macro/plugin so handlers receive typed `user` or `session`; DO NOT parse auth headers in every route.
-15. When using Drizzle, derive API response schemas from Drizzle tables with `drizzle-typebox` instead of hand-writing duplicate response contracts.
+15. When defining a new Drizzle-shaped TypeBox contract, read `references/db-typebox.md` and derive insert, update, and select schemas with `drizzle-orm/typebox`; do not replace an existing route-local success schema unless the user explicitly asks to change that endpoint contract.
 
 ## Route file layout
 
@@ -48,7 +48,7 @@ Read only the references needed for the task.
 - `references/controller-pattern.md`: app shell, route registry, controller factory, grouped route modules, and typed helper context.
 - `references/plugin-pattern.md`: general plugin ownership, setup composition, capability boundaries, and helper extraction rules.
 - `references/auth-macro.md`: preferred auth macro shape, simple schema guards, and route usage.
-- `references/db-typebox.md`: Drizzle-to-TypeBox response schemas, insert/update schemas, overrides, raw variants, and enriched responses.
+- `references/db-typebox.md`: current `drizzle-orm/typebox` imports, insert/update/select schema derivation, overrides, refinements, validation, raw variants, and enriched responses.
 
 ## Hard rules
 
@@ -99,7 +99,7 @@ A good Elysia change leaves the next route easy to copy:
 - one import for controller creation
 - URL-shaped route folders/files with `$param` names and a matching `.group(...)` at the top
 - route files grouped enough to avoid opening many tiny tabs
-- response schemas imported from DB/schema utilities where possible
+- DB-shaped response schemas derived from Drizzle when that is already the endpoint contract
 - large request/response resource schemas imported from a service-local schema/model file
 - operation IDs on routes
 - no hidden request-time side effects
