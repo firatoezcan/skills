@@ -1,0 +1,4 @@
+interface:
+  display_name: "Gitea Tea PR"
+  short_description: "Create Gitea pull requests with tea and tea api fallbacks."
+  default_prompt: "Create a Gitea pull request for the current pushed branch using tea."
