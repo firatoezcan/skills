@@ -60,6 +60,8 @@ expect_denied "repeated unrestricted short option" -u -u needle .
 expect_denied "clustered unrestricted short option" -Huu needle .
 expect_denied "triple unrestricted short option" -uuu needle .
 expect_denied "hidden plus single unrestricted option" --hidden -u needle .
+expect_denied "hidden short option plus no-ignore-dot" -. --no-ignore-dot needle .
+expect_denied "hidden plus no-ignore-vcs" --hidden --no-ignore-vcs needle .
 expect_allowed "single unrestricted option" -u needle .
 expect_allowed "value-bearing short option is not unrestricted" -gu needle .
 expect_allowed "pattern then narrow root after separator" -- needle narrow
@@ -85,6 +87,50 @@ if (( override_status != 64 )); then
 	failures=$((failures + 1))
 else
 	printf 'ok - caller environment cannot authorize broad traversal\n'
+fi
+
+git_directory=$probe_root/foreign.git
+git init --bare --quiet "$git_directory"
+set +e
+(
+	cd "$probe_root"
+	GIT_DIR=$git_directory \
+		GIT_WORK_TREE=/ \
+		RG_GUARD_REAL_RG=/bin/echo \
+		RG_GUARD_TIMEOUT=/bin/echo \
+		RG_GUARD_JQ=$(command -v jq) \
+		RG_GUARD_GIT=$(command -v git) \
+		RG_GUARD_PS=/bin/ps \
+		XDG_STATE_HOME=$state_root \
+		bash "$guard_script" --hidden --no-ignore needle .
+) >/dev/null 2>&1
+git_environment_status=$?
+set -e
+if (( git_environment_status != 64 )); then
+	printf 'not ok - Git environment cannot replace repository discovery (expected 64, got %d)\n' "$git_environment_status"
+	failures=$((failures + 1))
+else
+	printf 'ok - Git environment cannot replace repository discovery\n'
+fi
+
+set +e
+(
+	cd /
+	RG_GUARD_REAL_RG=/bin/echo \
+		RG_GUARD_TIMEOUT=/bin/echo \
+		RG_GUARD_JQ=$(command -v jq) \
+		RG_GUARD_GIT=$(command -v git) \
+		RG_GUARD_PS=/bin/ps \
+		XDG_STATE_HOME=$state_root \
+		bash "$guard_script" needle /
+) >/dev/null 2>&1
+filesystem_root_status=$?
+set -e
+if (( filesystem_root_status != 64 )); then
+	printf 'not ok - filesystem root cannot become policy scope (expected 64, got %d)\n' "$filesystem_root_status"
+	failures=$((failures + 1))
+else
+	printf 'ok - filesystem root cannot become policy scope\n'
 fi
 
 rm -f -- "$state_root/rg-guard/invocations.jsonl"

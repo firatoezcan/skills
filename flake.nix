@@ -72,6 +72,7 @@
 
       config = lib.mkIf cfg.enable {
         home.packages = [ cfg.package ];
+        home.sessionVariables.RIPGREP_CONFIG_PATH = "${./tools/guarded-ripgrep/require-wrapper.conf}";
         home.file.".local/bin/rg" = {
           force = true;
           source = "${cfg.package}/bin/rg";

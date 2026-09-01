@@ -14,7 +14,7 @@ search_roots=()
 resolved_roots=()
 positionals=()
 flag_classes=()
-effective_args=(--threads "$maximum_threads" "${original_args[@]}")
+effective_args=(--no-config --threads "$maximum_threads" "${original_args[@]}")
 hidden=false
 ignores_disabled=false
 files_mode=false
@@ -87,7 +87,7 @@ while (( index < ${#original_args[@]} )); do
 			hidden=true
 			record_flag_class hidden
 			;;
-		--no-ignore)
+		--no-ignore|--no-ignore-dot|--no-ignore-exclude|--no-ignore-files|--no-ignore-global|--no-ignore-parent|--no-ignore-vcs)
 			ignores_disabled=true
 			record_flag_class ignore-disabled
 			;;
@@ -139,6 +139,10 @@ while (( index < ${#original_args[@]} )); do
 			while (( cluster_index < ${#cluster} )); do
 				short_option=${cluster:cluster_index:1}
 				case $short_option in
+					.)
+						hidden=true
+						record_flag_class hidden
+						;;
 					u)
 						unrestricted_count=$((unrestricted_count + 1))
 						record_flag_class unrestricted
@@ -216,12 +220,16 @@ if (( ${#search_roots[@]} > maximum_roots )); then
 fi
 
 cwd=$(pwd -P)
-repo_root=$($git_command -C "$cwd" rev-parse --show-toplevel 2>/dev/null || true)
+repo_root=$(env -u GIT_DIR -u GIT_WORK_TREE "$git_command" -C "$cwd" rev-parse --show-toplevel 2>/dev/null || true)
 if [[ -n $repo_root ]]; then
 	repo_root=$(realpath -e -- "$repo_root")
 	policy_scope=$repo_root
 else
 	policy_scope=$cwd
+fi
+if [[ $policy_scope == / ]]; then
+	printf '%s\n' "rg guard: refusing the filesystem root as policy scope" >&2
+	exit 64
 fi
 
 searches_scope_root=false
@@ -246,10 +254,10 @@ for search_root in "${search_roots[@]}"; do
 done
 
 decision=allow
-reason=scoped-search
+reason='scoped-search'
 if [[ $hidden == true && $ignores_disabled == true && $searches_scope_root == true ]]; then
 	decision=deny
-	reason=hidden-no-ignore-at-scope-root
+	reason='hidden-no-ignore-at-scope-root'
 fi
 
 state_root=${XDG_STATE_HOME:-${HOME:?}/.local/state}
@@ -263,8 +271,8 @@ fi
 pgid=$($ps_command -o pgid= -p $$ 2>/dev/null || true)
 pgid=${pgid//[[:space:]]/}
 timestamp=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
-roots_json=$($jq_command -cn --args '$ARGS.positional' -- "${resolved_roots[@]}")
-flag_classes_json=$($jq_command -cn --args '$ARGS.positional' -- "${flag_classes[@]}")
+roots_json=$($jq_command -cn --args "\$ARGS.positional" -- "${resolved_roots[@]}")
+flag_classes_json=$($jq_command -cn --args "\$ARGS.positional" -- "${flag_classes[@]}")
 
 $jq_command -cn \
 	--arg timestamp "$timestamp" \
@@ -284,7 +292,7 @@ $jq_command -cn \
 	--argjson root_count "${#resolved_roots[@]}" \
 	--argjson roots "$roots_json" \
 	--argjson flag_classes "$flag_classes_json" \
-	'$ARGS.named + {root_count: $root_count, roots: $roots, flag_classes: $flag_classes}' >>"$log_file"
+	"\$ARGS.named + {root_count: \$root_count, roots: \$roots, flag_classes: \$flag_classes}" >>"$log_file"
 
 if [[ $decision == deny ]]; then
 	printf '%s\n' \
