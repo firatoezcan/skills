@@ -8,13 +8,14 @@ readonly timeout_command=${RG_GUARD_TIMEOUT:?}
 readonly jq_command=${RG_GUARD_JQ:?}
 readonly git_command=${RG_GUARD_GIT:?}
 readonly ps_command=${RG_GUARD_PS:?}
+readonly -a real_rg_prefix=(--no-config)
 
 original_args=("$@")
 search_roots=()
 resolved_roots=()
 positionals=()
 flag_classes=()
-effective_args=(--no-config --threads "$maximum_threads" "${original_args[@]}")
+effective_args=("${real_rg_prefix[@]}" --threads "$maximum_threads" "${original_args[@]}")
 hidden=false
 ignores_disabled=false
 files_mode=false
@@ -63,7 +64,7 @@ case ${1-} in
 		;;
 	-h|--help|-V|--version|--type-list|--pcre2-version)
 		if (( $# == 1 )); then
-			exec "$real_rg" "$@"
+			exec "$real_rg" "${real_rg_prefix[@]}" "$@"
 		fi
 		;;
 esac

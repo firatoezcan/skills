@@ -58,6 +58,12 @@ if [[ $resolved != "$guard_path/rg" ]]; then
 	exit 1
 fi
 
+if ! RIPGREP_CONFIG_PATH=$require_wrapper_config PATH=$guarded_path rg --type-list >/dev/null 2>&1; then
+	printf 'not ok - wrapper-authorized type listing ignores the fail-closed config\n'
+	exit 1
+fi
+printf 'ok - wrapper-authorized type listing ignores the fail-closed config\n'
+
 (
 	cd "$search_root"
 	RIPGREP_CONFIG_PATH=$require_wrapper_config \
