@@ -3,7 +3,7 @@
 
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
 
-  outputs = { nixpkgs, ... }: let
+  outputs = { self, nixpkgs, ... }: let
     supportedSystems = [
       "aarch64-darwin"
       "x86_64-darwin"
@@ -32,5 +32,37 @@
       default = guardedRipgrep;
       guarded-ripgrep = guardedRipgrep;
     });
+
+    homeManagerModules.default = { config, lib, pkgs, ... }: let
+      cfg = config.programs.guarded-ripgrep;
+      defaultPackage = self.packages.${pkgs.stdenv.hostPlatform.system}.guarded-ripgrep;
+      shellFunction = ''
+        rg() {
+          ${cfg.package}/bin/rg "$@"
+        }
+      '';
+    in {
+      options.programs.guarded-ripgrep = {
+        enable = lib.mkEnableOption "guarded ripgrep command interception";
+        package = lib.mkOption {
+          type = lib.types.package;
+          default = defaultPackage;
+          description = "The guarded ripgrep package invoked by shell command lookup.";
+        };
+      };
+
+      config = lib.mkIf cfg.enable {
+        home.packages = [ cfg.package ];
+        home.file.".local/bin/rg" = {
+          force = true;
+          source = "${cfg.package}/bin/rg";
+        };
+        programs.zsh.envExtra = lib.mkBefore shellFunction;
+        programs.bash.initExtra = lib.mkBefore shellFunction;
+        programs.bash.profileExtra = lib.mkBefore shellFunction;
+      };
+    };
+
+    homeManagerModules.guarded-ripgrep = self.homeManagerModules.default;
   };
 }
