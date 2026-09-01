@@ -6,7 +6,6 @@
   outputs = { self, nixpkgs, ... }: let
     supportedSystems = [
       "aarch64-darwin"
-      "x86_64-darwin"
       "aarch64-linux"
       "x86_64-linux"
     ];
@@ -33,6 +32,25 @@
       guarded-ripgrep = guardedRipgrep;
     });
 
+    checks = forAllSystems (system: let
+      pkgs = nixpkgs.legacyPackages.${system};
+      ps = if pkgs.stdenv.hostPlatform.isDarwin then "/bin/ps" else "${pkgs.procps}/bin/ps";
+    in {
+      guarded-ripgrep-codex-path = pkgs.runCommand "guarded-ripgrep-codex-path-check" {
+        nativeBuildInputs = [ pkgs.bash pkgs.coreutils pkgs.git pkgs.jq ];
+      } ''
+        bash ${./tools/guarded-ripgrep/codex-path-probe.sh} \
+          ${./tools/guarded-ripgrep/rg-guard.bash} \
+          ${./tools/guarded-ripgrep/require-wrapper.conf} \
+          ${pkgs.ripgrep}/bin/rg \
+          ${pkgs.coreutils}/bin/timeout \
+          ${pkgs.jq}/bin/jq \
+          ${pkgs.git}/bin/git \
+          ${ps}
+        touch "$out"
+      '';
+    });
+
     homeManagerModules.default = { config, lib, pkgs, ... }: let
       cfg = config.programs.guarded-ripgrep;
       defaultPackage = self.packages.${pkgs.stdenv.hostPlatform.system}.guarded-ripgrep;
@@ -53,6 +71,7 @@
 
       config = lib.mkIf cfg.enable {
         home.packages = [ cfg.package ];
+        home.sessionVariables.RIPGREP_CONFIG_PATH = "${./tools/guarded-ripgrep/require-wrapper.conf}";
         home.file.".local/bin/rg" = {
           force = true;
           source = "${cfg.package}/bin/rg";
